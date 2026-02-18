@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 // ===== ROMANIAN ZONE DATA =====
 const JUDETE_ZAPADA: Record<string, number> = {
@@ -29,6 +29,7 @@ const JUDETE_VANT: Record<string, number> = {
   "Tulcea": 0.6, "Vaslui": 0.5, "Vâlcea": 0.4, "Vrancea": 0.5, "București": 0.5
 };
 
+// P100-1/2013 — Valorile ag și Tc pentru reședințele de județ
 interface SeismicData { ag: number; Tc: number; oras: string; }
 const JUDETE_SEISMIC: Record<string, SeismicData> = {
   "Alba": { ag: 0.15, Tc: 0.7, oras: "Alba Iulia" },
@@ -113,10 +114,13 @@ const Icons = {
   Wind: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9.59 4.59A2 2 0 1111 8H2m10.59 11.41A2 2 0 1014 16H2m15.73-8.27A2.5 2.5 0 1119.5 12H2"/></svg>,
   Seismic: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="2 12 6 12 8 4 12 20 16 8 18 12 22 12"/></svg>,
   Layers: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>,
+  Brain: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2a7 7 0 017 7c0 2.38-1.19 4.47-3 5.74V17a2 2 0 01-2 2h-4a2 2 0 01-2-2v-2.26C6.19 13.47 5 11.38 5 9a7 7 0 017-7z"/><path d="M9 21h6M10 17v4M14 17v4"/></svg>,
+  Book: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>,
   Combo: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/></svg>,
   Plus: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>,
   Trash: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>,
-  Download: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>,
+  Send: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>,
+  Loader: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12a9 9 0 11-6.219-8.56"/></svg>,
 };
 
 // ===== UI COMPONENTS =====
@@ -125,81 +129,167 @@ const Input = ({ label, value, onChange, type = "text", suffix, small, disabled 
   <div style={{ display: "flex", flexDirection: "column", gap: 4, flex: small ? "0 0 auto" : 1 }}>
     {label && <label style={{ fontSize: 11, color: "#94a3b8", fontWeight: 500 }}>{label}</label>}
     <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-      <input type={type} value={value}
+      <input
+        type={type}
+        value={value}
         onChange={e => onChange(type === "number" ? parseFloat(e.target.value) || 0 : e.target.value)}
         disabled={disabled}
-        style={{ background: disabled ? "#1e293b" : "#0f172a", border: "1px solid #334155", borderRadius: 6, padding: "8px 12px", color: "#e2e8f0", fontSize: 13, width: small ? 80 : "100%", outline: "none", opacity: disabled ? 0.6 : 1 }} />
+        style={{
+          background: disabled ? "#1e293b" : "#0f172a", border: "1px solid #334155", borderRadius: 6,
+          padding: "8px 12px", color: "#e2e8f0", fontSize: 13, width: small ? 80 : "100%",
+          outline: "none", opacity: disabled ? 0.6 : 1
+        }}
+      />
       {suffix && <span style={{ fontSize: 12, color: "#64748b", whiteSpace: "nowrap" }}>{suffix}</span>}
     </div>
   </div>
 );
 
-interface SelectProps { label?: string; value: string; onChange: (v: string) => void; options: { value: string; label: string }[]; }
-const Select = ({ label, value, onChange, options }: SelectProps) => (
+interface SelectProps { label?: string; value: string; onChange: (v: string) => void; options: { value: string; label: string }[]; disabled?: boolean; }
+const Select = ({ label, value, onChange, options, disabled }: SelectProps) => (
   <div style={{ display: "flex", flexDirection: "column", gap: 4, flex: 1 }}>
     {label && <label style={{ fontSize: 11, color: "#94a3b8", fontWeight: 500 }}>{label}</label>}
-    <select value={value} onChange={e => onChange(e.target.value)}
-      style={{ background: "#0f172a", border: "1px solid #334155", borderRadius: 6, padding: "8px 12px", color: "#e2e8f0", fontSize: 13, outline: "none" }}>
+    <select
+      value={value}
+      onChange={e => onChange(e.target.value)}
+      disabled={disabled}
+      style={{
+        background: "#0f172a", border: "1px solid #334155", borderRadius: 6,
+        padding: "8px 12px", color: "#e2e8f0", fontSize: 13, outline: "none"
+      }}
+    >
       {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
     </select>
   </div>
 );
 
 const Card = ({ children, title, accent }: { children: React.ReactNode; title?: string; accent?: string }) => (
-  <div style={{ background: "#1e293b", borderRadius: 10, border: "1px solid #334155", borderTop: accent ? `3px solid ${accent}` : undefined, overflow: "hidden" }}>
-    {title && <div style={{ padding: "12px 16px", borderBottom: "1px solid #334155", fontWeight: 600, fontSize: 14, color: "#f1f5f9" }}>{title}</div>}
+  <div style={{
+    background: "#1e293b", borderRadius: 10, border: "1px solid #334155",
+    borderTop: accent ? `3px solid ${accent}` : undefined, overflow: "hidden"
+  }}>
+    {title && (
+      <div style={{ padding: "12px 16px", borderBottom: "1px solid #334155", fontWeight: 600, fontSize: 14, color: "#f1f5f9" }}>
+        {title}
+      </div>
+    )}
     <div style={{ padding: 16 }}>{children}</div>
   </div>
 );
 
-const Btn = ({ children, onClick, variant = "primary", small, disabled, style: ext }: any) => {
-  const s: Record<string, any> = { primary: { background: "#3b82f6", color: "#fff" }, danger: { background: "#ef4444", color: "#fff" }, ghost: { background: "transparent", color: "#94a3b8", border: "1px solid #334155" }, success: { background: "#10b981", color: "#fff" } };
+const Btn = ({ children, onClick, variant = "primary", small, disabled, style: extraStyle }: any) => {
+  const styles: Record<string, any> = {
+    primary: { background: "#3b82f6", color: "#fff" },
+    danger: { background: "#ef4444", color: "#fff" },
+    ghost: { background: "transparent", color: "#94a3b8", border: "1px solid #334155" },
+    success: { background: "#10b981", color: "#fff" }
+  };
   return (
-    <button onClick={onClick} disabled={disabled}
-      style={{ ...s[variant], borderRadius: 6, border: "none", cursor: disabled ? "not-allowed" : "pointer", padding: small ? "4px 10px" : "8px 16px", fontSize: small ? 12 : 13, fontWeight: 500, display: "inline-flex", alignItems: "center", gap: 6, opacity: disabled ? 0.5 : 1, transition: "all 0.15s", ...ext }}>
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      style={{
+        ...styles[variant], borderRadius: 6, border: "none", cursor: disabled ? "not-allowed" : "pointer",
+        padding: small ? "4px 10px" : "8px 16px", fontSize: small ? 12 : 13, fontWeight: 500,
+        display: "inline-flex", alignItems: "center", gap: 6, opacity: disabled ? 0.5 : 1,
+        transition: "all 0.15s", ...extraStyle
+      }}
+    >
       {children}
     </button>
   );
 };
 
 const Badge = ({ children, color = "#3b82f6" }: { children: React.ReactNode; color?: string }) => (
-  <span style={{ background: color + "20", color, fontSize: 11, fontWeight: 600, padding: "2px 8px", borderRadius: 20 }}>{children}</span>
+  <span style={{
+    background: color + "20", color, fontSize: 11, fontWeight: 600,
+    padding: "2px 8px", borderRadius: 20
+  }}>{children}</span>
 );
 
-// ===== LAYER TYPE =====
+// ===== TYPES =====
 interface Layer { id: string; material: string; density: number; thickness: number; unit: string; }
+interface NormItem { id: string; name: string; type: string; content: string; }
+interface AiMessage { role: "user" | "assistant"; content: string; }
 
 // ===== MAIN APP =====
-export default function StructCalc() {
+export default function StructCalcAI() {
   const [tab, setTab] = useState("project");
-  const [project, setProject] = useState({ name: "", judet: "București", tipCladire: "locuinta", H: 10, L: 20, B: 12, nrEtaje: 3, clasaImp: "III" });
+  const [project, setProject] = useState({
+    name: "", judet: "București", tipCladire: "locuinta",
+    H: 10, L: 20, B: 12, nrEtaje: 3, clasaImp: "III"
+  });
   const [layers, setLayers] = useState<Layer[]>([
     { id: "l1", material: "Pardoseală ceramică", density: 22, thickness: 0.02, unit: "kN/m³" },
     { id: "l2", material: "Șapă ciment", density: 22, thickness: 0.05, unit: "kN/m³" },
     { id: "l3", material: "Beton armat", density: 25, thickness: 0.15, unit: "kN/m³" }
   ]);
-  const [snowP, setSnowP] = useState({ roofType: "plat", mu: 0.8, Ce: 1.0, Ct: 1.0 });
-  const [windP, setWindP] = useState({ catTeren: "III", co: 1.0 });
-  const [seismicP, setSeismicP] = useState({ q: 3.5, eta: 1.0, beta0: 2.5 });
+  const [snowParams, setSnowParams] = useState({ roofType: "plat", mu: 0.8, Ce: 1.0, Ct: 1.0 });
+  const [windParams, setWindParams] = useState({ catTeren: "III", co: 1.0 });
+  const [seismicParams, setSeismicParams] = useState({ q: 3.5, eta: 1.0, beta0: 2.5 });
+  const [aiMessages, setAiMessages] = useState<AiMessage[]>([]);
+  const [aiInput, setAiInput] = useState("");
+  const [aiLoading, setAiLoading] = useState(false);
+  const [normLib, setNormLib] = useState<NormItem[]>([]);
+  // FIX: useState mutat din renderLibrary in componenta principala (Rules of Hooks)
+  const [newNorm, setNewNorm] = useState({ name: "", type: "tabel", content: "" });
+  const chatEndRef = useRef<HTMLDivElement>(null);
+
+  // Load saved normatives from localStorage (FIX: window.storage nu exista)
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("structcalc_norms");
+      if (stored) setNormLib(JSON.parse(stored));
+    } catch {
+      /* first use */
+    }
+  }, []);
+
+  // Save normatives
+  const saveNorms = (norms: NormItem[]) => {
+    setNormLib(norms);
+    try {
+      localStorage.setItem("structcalc_norms", JSON.stringify(norms));
+    } catch {
+      /* storage full or unavailable */
+    }
+  };
+
+  // Auto-scroll chat
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [aiMessages]);
 
   // ===== CALCULATIONS =====
   const s0k = JUDETE_ZAPADA[project.judet] || 1.5;
   const qb = JUDETE_VANT[project.judet] || 0.5;
-  const sz = JUDETE_SEISMIC[project.judet] || { ag: 0.20, Tc: 1.0, oras: "" };
+  const seismicZone = JUDETE_SEISMIC[project.judet] || { ag: 0.20, Tc: 1.0, oras: "" };
   const gammaI = CLASE_IMPORTANTA.find(c => c.cls === project.clasaImp)?.gamma || 1.0;
 
-  const totalG = layers.reduce((sum, l) => sum + (l.unit === "kN/m²" ? l.density : l.density * l.thickness), 0);
-  const snowLoad = snowP.mu * snowP.Ce * snowP.Ct * s0k;
+  // Permanent loads
+  const totalG = layers.reduce((sum, l) => {
+    const g = l.unit === "kN/m²" ? l.density : l.density * l.thickness;
+    return sum + g;
+  }, 0);
 
-  const terenCat = CATEGORII_TEREN.find(c => c.cat === windP.catTeren) || CATEGORII_TEREN[2];
+  // Snow
+  const snowLoad = snowParams.mu * snowParams.Ce * snowParams.Ct * s0k;
+
+  // Wind
+  const terenCat = CATEGORII_TEREN.find(c => c.cat === windParams.catTeren) || CATEGORII_TEREN[2];
   const z = Math.max(project.H, terenCat.zmin);
   const kr = 0.19 * Math.pow(terenCat.z0 / 0.05, 0.07);
   const crz = kr * Math.log(z / terenCat.z0);
-  const qpz = qb * (1 + 7 * kr / (crz * windP.co)) * crz * crz * windP.co * windP.co;
+  const qpz = qb * (1 + 7 * kr / (crz * windParams.co)) * crz * crz * windParams.co * windParams.co;
 
+  // Seismic spectrum function
   const getSpectralAccel = (T: number) => {
-    const { ag, Tc } = sz;
-    const Tb = Tc / 3, Td = 2.0, b0 = seismicP.beta0, eta = seismicP.eta;
+    const ag = seismicZone.ag;
+    const Tc = seismicZone.Tc;
+    const Tb = Tc / 3;
+    const Td = 2.0;
+    const b0 = seismicParams.beta0;
+    const eta = seismicParams.eta;
     if (T === 0) return ag * b0 * gammaI;
     if (T < Tb) return ag * gammaI * (1 + (b0 * eta - 1) * T / Tb);
     if (T <= Tc) return ag * b0 * eta * gammaI;
@@ -207,78 +297,102 @@ export default function StructCalc() {
     return ag * b0 * eta * gammaI * (Tc * Td / (T * T));
   };
 
-  // ===== COMBINATIONS =====
-  const G = totalG, S = snowLoad, W = qpz;
-  const combos = {
-    uls: [
-      { name: "ULS 1: G + S (dominant)", value: 1.35*G + 1.5*S + 1.5*0.6*W, formula: `1.35×${G.toFixed(2)} + 1.5×${S.toFixed(2)} + 1.5×0.6×${W.toFixed(3)}` },
-      { name: "ULS 2: G + W (dominant)", value: 1.35*G + 1.5*W + 1.5*0.5*S, formula: `1.35×${G.toFixed(2)} + 1.5×${W.toFixed(3)} + 1.5×0.5×${S.toFixed(2)}` },
-      { name: "ULS 3: G minim", value: 1.0*G, formula: `1.0×${G.toFixed(2)}` }
-    ],
-    sls_freq: [
-      { name: "SLS Frecventă (S dom.)", value: G + 0.2*S, formula: `${G.toFixed(2)} + 0.2×${S.toFixed(2)}` },
-      { name: "SLS Frecventă (W dom.)", value: G + 0.2*W, formula: `${G.toFixed(2)} + 0.2×${W.toFixed(3)}` }
-    ],
-    sls_qp: [
-      { name: "SLS Quasi-permanentă", value: G, formula: `${G.toFixed(2)}` }
-    ]
+  // ===== AI AGENT =====
+  const sendToAI = async () => {
+    if (!aiInput.trim() || aiLoading) return;
+    const userMsg = aiInput.trim();
+    setAiInput("");
+    setAiMessages(prev => [...prev, { role: "user", content: userMsg }]);
+    setAiLoading(true);
+
+    const context = `Ești un inginer structurist expert în normativele românești. Proiect: ${project.name || "Nedefinit"}, Județ: ${project.judet}, H=${project.H}m, L=${project.L}m, B=${project.B}m, ${project.nrEtaje} etaje, Clasa ${project.clasaImp}.
+Încărcări permanente: G=${totalG.toFixed(2)} kN/m². Zăpadă: s0k=${s0k} kN/m², s=${snowLoad.toFixed(2)} kN/m². Vânt: qb=${qb} kN/m², qp(z)=${qpz.toFixed(3)} kN/m², cat.teren=${windParams.catTeren}. Seismic: ag=${seismicZone.ag}g, Tc=${seismicZone.Tc}s, γI=${gammaI}.
+${normLib.length > 0 ? "Normative în bibliotecă: " + normLib.map(n => n.name).join(", ") : "Nu sunt normative încărcate."}
+Răspunde în română, concis și tehnic.`;
+
+    try {
+      const resp = await fetch("/api/ai", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          context,
+          messages: [...aiMessages.slice(-10), { role: "user", content: userMsg }]
+        })
+      });
+      const data = await resp.json();
+      const reply = data.content || data.error || "Eroare la procesarea răspunsului.";
+      setAiMessages(prev => [...prev, { role: "assistant", content: reply }]);
+    } catch (err: any) {
+      setAiMessages(prev => [...prev, { role: "assistant", content: "Eroare de conexiune la AI: " + err.message }]);
+    }
+    setAiLoading(false);
   };
 
-  // ===== EXPORT =====
-  const exportReport = () => {
-    const lines = [
-      `RAPORT ÎNCĂRCĂRI STRUCTURALE`, `${"=".repeat(50)}`,
-      `Proiect: ${project.name || "—"}`, `Județ: ${project.judet} | Oraș: ${sz.oras}`,
-      `Dimensiuni: H=${project.H}m, L=${project.L}m, B=${project.B}m, ${project.nrEtaje} etaje`,
-      `Clasă importanță: ${project.clasaImp} (γI=${gammaI})`, ``,
-      `--- ÎNCĂRCĂRI PERMANENTE (G) ---`,
-      ...layers.map(l => `  ${l.material}: ${(l.unit === "kN/m²" ? l.density : l.density * l.thickness).toFixed(3)} kN/m²`),
-      `  TOTAL G = ${totalG.toFixed(2)} kN/m²`, ``,
-      `--- ZĂPADĂ (CR 1-1-3/2012) ---`,
-      `  s₀,k = ${s0k} kN/m² | μ=${snowP.mu} | Ce=${snowP.Ce} | Ct=${snowP.Ct}`,
-      `  s = ${snowLoad.toFixed(2)} kN/m²`, ``,
-      `--- VÂNT (CR 1-1-4/2012) ---`,
-      `  qb = ${qb} kN/m² | Cat.teren=${windP.catTeren} | co=${windP.co}`,
-      `  qp(z) = ${qpz.toFixed(3)} kN/m²`, ``,
-      `--- SEISMIC (P100-1/2013, IMR=225 ani) ---`,
-      `  ag = ${sz.ag}g | Tc = ${sz.Tc}s | γI = ${gammaI}`,
-      `  q = ${seismicP.q} | β₀ = ${seismicP.beta0}`,
-      `  Sd,max = ${(sz.ag * seismicP.beta0 * gammaI / seismicP.q).toFixed(3)}g`, ``,
-      `--- COMBINAȚII ULS ---`, ...combos.uls.map(c => `  ${c.name}: ${c.value.toFixed(2)} kN/m²`), ``,
-      `--- COMBINAȚII SLS ---`, ...combos.sls_freq.map(c => `  ${c.name}: ${c.value.toFixed(2)} kN/m²`),
-      ...combos.sls_qp.map(c => `  ${c.name}: ${c.value.toFixed(2)} kN/m²`), ``,
-      `Generat cu StructCalc | ${new Date().toLocaleDateString("ro-RO")}`
-    ];
-    const blob = new Blob([lines.join("\n")], { type: "text/plain" });
-    const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
-    a.download = `structcalc_${project.name || "raport"}.txt`; a.click();
-  };
+  // ===== COMBINATIONS (EN 1990) =====
+  const combinations = (() => {
+    const G = totalG;
+    const S = snowLoad;
+    const W = qpz;
+    const gammaG_sup = 1.35;
+    const gammaG_inf = 1.0;
+    const gammaQ = 1.5;
+    const psi0_snow = 0.5;
+    const psi0_wind = 0.6;
+    const psi1_snow = 0.2;
+    const psi1_wind = 0.2;
+    const psi2_snow = 0.0;
+    const psi2_wind = 0.0;
+
+    return {
+      uls: [
+        { name: "ULS 1: G + S (dominant)", value: gammaG_sup * G + gammaQ * S + gammaQ * psi0_wind * W, formula: `${gammaG_sup}×${G.toFixed(2)} + ${gammaQ}×${S.toFixed(2)} + ${gammaQ}×${psi0_wind}×${W.toFixed(3)}` },
+        { name: "ULS 2: G + W (dominant)", value: gammaG_sup * G + gammaQ * W + gammaQ * psi0_snow * S, formula: `${gammaG_sup}×${G.toFixed(2)} + ${gammaQ}×${W.toFixed(3)} + ${gammaQ}×${psi0_snow}×${S.toFixed(2)}` },
+        { name: "ULS 3: G minim", value: gammaG_inf * G, formula: `${gammaG_inf}×${G.toFixed(2)}` }
+      ],
+      sls_freq: [
+        { name: "SLS Frecventă (S dom.)", value: G + psi1_snow * S + psi2_wind * W, formula: `${G.toFixed(2)} + ${psi1_snow}×${S.toFixed(2)} + ${psi2_wind}×${W.toFixed(3)}` },
+        { name: "SLS Frecventă (W dom.)", value: G + psi1_wind * W + psi2_snow * S, formula: `${G.toFixed(2)} + ${psi1_wind}×${W.toFixed(3)} + ${psi2_snow}×${S.toFixed(2)}` }
+      ],
+      sls_qp: [
+        { name: "SLS Quasi-permanentă", value: G + psi2_snow * S + psi2_wind * W, formula: `${G.toFixed(2)} + ${psi2_snow}×${S.toFixed(2)} + ${psi2_wind}×${W.toFixed(3)}` }
+      ]
+    };
+  })();
 
   // ===== SPECTRUM CHART =====
   const SpectrumChart = () => {
-    const pts: { T: number; Sa: number }[] = [];
-    for (let T = 0; T <= 4; T += 0.05) pts.push({ T, Sa: getSpectralAccel(T) });
-    const maxSa = Math.max(...pts.map(p => p.Sa));
-    const w = 500, h = 200, px = 50, py = 20, cw = w - 2*px, ch = h - 2*py;
-    const pathD = pts.map((p, i) => {
-      const x = px + (p.T/4)*cw, y = py + ch - (p.Sa/(maxSa*1.1))*ch;
-      return `${i===0?"M":"L"}${x},${y}`;
+    const points: { T: number; Sa: number }[] = [];
+    for (let T = 0; T <= 4; T += 0.05) {
+      points.push({ T, Sa: getSpectralAccel(T) });
+    }
+    const maxSa = Math.max(...points.map(p => p.Sa));
+    const w = 500, h = 200, px = 50, py = 20;
+    const cw = w - 2 * px, ch = h - 2 * py;
+    const pathD = points.map((p, i) => {
+      const x = px + (p.T / 4) * cw;
+      const y = py + ch - (p.Sa / (maxSa * 1.1)) * ch;
+      return `${i === 0 ? "M" : "L"}${x},${y}`;
     }).join(" ");
+
     return (
       <svg viewBox={`0 0 ${w} ${h}`} style={{ width: "100%", maxWidth: 500 }}>
-        <defs><linearGradient id="sg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#ef4444" stopOpacity="0.3"/><stop offset="100%" stopColor="#ef4444" stopOpacity="0"/></linearGradient></defs>
-        <path d={pathD + ` L${px+cw},${py+ch} L${px},${py+ch} Z`} fill="url(#sg)"/>
-        <path d={pathD} fill="none" stroke="#ef4444" strokeWidth="2"/>
-        <line x1={px} y1={py+ch} x2={px+cw} y2={py+ch} stroke="#475569" strokeWidth="1"/>
-        <line x1={px} y1={py} x2={px} y2={py+ch} stroke="#475569" strokeWidth="1"/>
-        {[0,1,2,3,4].map(t => <text key={t} x={px+(t/4)*cw} y={h-2} fill="#94a3b8" fontSize="10" textAnchor="middle">{t}s</text>)}
-        <text x={15} y={py+ch/2} fill="#94a3b8" fontSize="10" textAnchor="middle" transform={`rotate(-90,15,${py+ch/2})`}>Se (g)</text>
-        <line x1={px+(sz.Tc/3/4)*cw} y1={py} x2={px+(sz.Tc/3/4)*cw} y2={py+ch} stroke="#94a3b8" strokeWidth="1" strokeDasharray="2"/>
-        <text x={px+(sz.Tc/3/4)*cw} y={py-4} fill="#94a3b8" fontSize="8" textAnchor="middle">Tb</text>
-        <line x1={px+(sz.Tc/4)*cw} y1={py} x2={px+(sz.Tc/4)*cw} y2={py+ch} stroke="#f59e0b" strokeWidth="1" strokeDasharray="4"/>
-        <text x={px+(sz.Tc/4)*cw} y={py-4} fill="#f59e0b" fontSize="9" textAnchor="middle">Tc={sz.Tc}s</text>
-        <line x1={px+(2/4)*cw} y1={py} x2={px+(2/4)*cw} y2={py+ch} stroke="#94a3b8" strokeWidth="1" strokeDasharray="2"/>
-        <text x={px+(2/4)*cw} y={py-4} fill="#94a3b8" fontSize="8" textAnchor="middle">Td=2s</text>
+        <defs>
+          <linearGradient id="specGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#ef4444" stopOpacity={0.3} />
+            <stop offset="100%" stopColor="#ef4444" stopOpacity={0} />
+          </linearGradient>
+        </defs>
+        <path d={pathD + ` L${px + cw},${py + ch} L${px},${py + ch} Z`} fill="url(#specGrad)" />
+        <path d={pathD} fill="none" stroke="#ef4444" strokeWidth="2" />
+        <line x1={px} y1={py + ch} x2={px + cw} y2={py + ch} stroke="#475569" strokeWidth="1" />
+        <line x1={px} y1={py} x2={px} y2={py + ch} stroke="#475569" strokeWidth="1" />
+        {[0, 1, 2, 3, 4].map(t => (
+          <text key={t} x={px + (t / 4) * cw} y={h - 2} fill="#94a3b8" fontSize="10" textAnchor="middle">{t}s</text>
+        ))}
+        <text x={15} y={py + ch / 2} fill="#94a3b8" fontSize="10" textAnchor="middle" transform={`rotate(-90,15,${py + ch / 2})`}>Sa (g)</text>
+        {/* Tc marker */}
+        <line x1={px + (seismicZone.Tc / 4) * cw} y1={py} x2={px + (seismicZone.Tc / 4) * cw} y2={py + ch} stroke="#f59e0b" strokeWidth="1" strokeDasharray="4" />
+        <text x={px + (seismicZone.Tc / 4) * cw} y={py - 4} fill="#f59e0b" fontSize="9" textAnchor="middle">Tc={seismicZone.Tc}s</text>
       </svg>
     );
   };
@@ -290,7 +404,9 @@ export default function StructCalc() {
     { id: "snow", label: "Zăpadă", icon: <Icons.Snow /> },
     { id: "wind", label: "Vânt", icon: <Icons.Wind /> },
     { id: "seismic", label: "Seismic", icon: <Icons.Seismic /> },
-    { id: "combo", label: "Combinații", icon: <Icons.Combo /> }
+    { id: "combo", label: "Combinații", icon: <Icons.Combo /> },
+    { id: "library", label: "Normative", icon: <Icons.Book /> },
+    { id: "ai", label: "AI Agent", icon: <Icons.Brain /> }
   ];
 
   // ===== RENDER SECTIONS =====
@@ -300,13 +416,16 @@ export default function StructCalc() {
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           <Input label="Denumire proiect" value={project.name} onChange={v => setProject(p => ({...p, name: v}))} />
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-            <Select label="Județ / Locație" value={project.judet} onChange={v => setProject(p => ({...p, judet: v}))} options={Object.keys(JUDETE_ZAPADA).map(j => ({ value: j, label: j }))} />
-            <Select label="Tip clădire" value={project.tipCladire} onChange={v => setProject(p => ({...p, tipCladire: v}))} options={[
-              { value: "locuinta", label: "Locuință" }, { value: "birou", label: "Birouri" },
-              { value: "comercial", label: "Comercial" }, { value: "industrial", label: "Industrial" },
-              { value: "educatie", label: "Educație" }, { value: "sanatate", label: "Sănătate" }
-            ]} />
-            <Select label="Clasă importanță" value={project.clasaImp} onChange={v => setProject(p => ({...p, clasaImp: v}))} options={CLASE_IMPORTANTA.map(c => ({ value: c.cls, label: `${c.cls} — ${c.desc}` }))} />
+            <Select label="Județ / Locație" value={project.judet} onChange={v => setProject(p => ({...p, judet: v}))}
+              options={Object.keys(JUDETE_ZAPADA).map(j => ({ value: j, label: j }))} />
+            <Select label="Tip clădire" value={project.tipCladire} onChange={v => setProject(p => ({...p, tipCladire: v}))}
+              options={[
+                { value: "locuinta", label: "Locuință" }, { value: "birou", label: "Clădire birouri" },
+                { value: "comercial", label: "Comercial" }, { value: "industrial", label: "Industrial" },
+                { value: "educatie", label: "Educație" }, { value: "sanatate", label: "Sănătate" }
+              ]} />
+            <Select label="Clasă importanță" value={project.clasaImp} onChange={v => setProject(p => ({...p, clasaImp: v}))}
+              options={CLASE_IMPORTANTA.map(c => ({ value: c.cls, label: `${c.cls} — ${c.desc}` }))} />
           </div>
         </div>
       </Card>
@@ -319,18 +438,17 @@ export default function StructCalc() {
         </div>
       </Card>
       <Card title="Parametri Zonali (automat din județ)" accent="#10b981">
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 12 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12 }}>
           {[
             { label: "Zăpadă s₀,k", value: `${s0k} kN/m²`, color: "#38bdf8" },
             { label: "Vânt qb", value: `${qb} kN/m²`, color: "#a78bfa" },
-            { label: "Seismic ag", value: `${sz.ag}g`, color: "#f87171" },
-            { label: "Perioadă Tc", value: `${sz.Tc}s`, color: "#fbbf24" },
-            { label: "Ref. seismic", value: sz.oras || project.judet, color: "#fb923c" },
+            { label: "Seismic ag", value: `${seismicZone.ag}g`, color: "#f87171" },
+            { label: "Perioadă Tc", value: `${seismicZone.Tc}s`, color: "#fbbf24" },
             { label: "Factor γI", value: gammaI.toString(), color: "#34d399" }
           ].map(item => (
             <div key={item.label} style={{ background: "#0f172a", borderRadius: 8, padding: 12, borderLeft: `3px solid ${item.color}` }}>
               <div style={{ fontSize: 11, color: "#94a3b8" }}>{item.label}</div>
-              <div style={{ fontSize: 18, fontWeight: 700, color: item.color }}>{item.value}</div>
+              <div style={{ fontSize: 20, fontWeight: 700, color: item.color }}>{item.value}</div>
             </div>
           ))}
         </div>
@@ -344,23 +462,30 @@ export default function StructCalc() {
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {layers.map((l, i) => (
             <div key={l.id} style={{ display: "flex", gap: 8, alignItems: "end", background: "#0f172a", padding: 10, borderRadius: 8 }}>
-              <Select label={i===0 ? "Material" : undefined} value={l.material}
-                onChange={v => { const m = MATERIALE_DEFAULT.find(x => x.name === v); setLayers(prev => prev.map((ll,ii) => ii===i ? {...ll, material:v, density: m?.density||ll.density, unit: m?.unit||ll.unit} : ll)); }}
+              <Select label={i === 0 ? "Material" : undefined} value={l.material}
+                onChange={v => {
+                  const mat = MATERIALE_DEFAULT.find(m => m.name === v);
+                  setLayers(prev => prev.map((ll, ii) => ii === i ? {...ll, material: v, density: mat?.density || ll.density, unit: mat?.unit || ll.unit} : ll));
+                }}
                 options={MATERIALE_DEFAULT.map(m => ({ value: m.name, label: m.name }))} />
-              <Input label={i===0 ? "Densitate" : undefined} value={l.density} type="number"
-                onChange={v => setLayers(prev => prev.map((ll,ii) => ii===i ? {...ll, density:v} : ll))} suffix={l.unit} small />
-              {l.unit === "kN/m³" && <Input label={i===0 ? "Grosime" : undefined} value={l.thickness} type="number"
-                onChange={v => setLayers(prev => prev.map((ll,ii) => ii===i ? {...ll, thickness:v} : ll))} suffix="m" small />}
+              <Input label={i === 0 ? "Densitate" : undefined} value={l.density} type="number"
+                onChange={v => setLayers(prev => prev.map((ll, ii) => ii === i ? {...ll, density: v} : ll))} suffix={l.unit} small />
+              {l.unit === "kN/m³" && (
+                <Input label={i === 0 ? "Grosime" : undefined} value={l.thickness} type="number"
+                  onChange={v => setLayers(prev => prev.map((ll, ii) => ii === i ? {...ll, thickness: v} : ll))} suffix="m" small />
+              )}
               <div style={{ display: "flex", flexDirection: "column", alignItems: "center", minWidth: 60 }}>
-                {i===0 && <label style={{ fontSize: 11, color: "#94a3b8", fontWeight: 500 }}>g</label>}
+                {i === 0 && <label style={{ fontSize: 11, color: "#94a3b8", fontWeight: 500 }}>g</label>}
                 <span style={{ fontSize: 14, fontWeight: 600, color: "#fbbf24", padding: "8px 0" }}>
                   {(l.unit === "kN/m²" ? l.density : l.density * l.thickness).toFixed(2)}
                 </span>
               </div>
-              <Btn variant="danger" small onClick={() => setLayers(p => p.filter((_,ii) => ii!==i))}><Icons.Trash /></Btn>
+              <Btn variant="danger" small onClick={() => setLayers(prev => prev.filter((_, ii) => ii !== i))}>
+                <Icons.Trash />
+              </Btn>
             </div>
           ))}
-          <Btn variant="ghost" onClick={() => setLayers(p => [...p, { id: "l"+Date.now(), material: "Beton armat", density: 25, thickness: 0.1, unit: "kN/m³" }])}>
+          <Btn variant="ghost" onClick={() => setLayers(prev => [...prev, { id: "l" + Date.now(), material: "Beton armat", density: 25, thickness: 0.1, unit: "kN/m³" }])}>
             <Icons.Plus /> Adaugă strat
           </Btn>
         </div>
@@ -374,29 +499,34 @@ export default function StructCalc() {
 
   const renderSnow = () => (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      <Card title="Parametri Zăpadă — CR 1-1-3/2012" accent="#38bdf8">
+      <Card title="Parametri Zăpadă — CR 1-1-3" accent="#38bdf8">
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
             <div style={{ flex: 1, background: "#0f172a", borderRadius: 8, padding: 12 }}>
-              <div style={{ fontSize: 11, color: "#94a3b8" }}>s₀,k (jud. {project.judet})</div>
+              <div style={{ fontSize: 11, color: "#94a3b8" }}>s₀,k (din județ: {project.judet})</div>
               <div style={{ fontSize: 24, fontWeight: 700, color: "#38bdf8" }}>{s0k} kN/m²</div>
             </div>
-            <Select label="Tip acoperiș" value={snowP.roofType}
-              onChange={v => { const mu: Record<string,number> = { plat: 0.8, simpanta: 0.8, dubla: 0.8, shed: 0.6 }; setSnowP(p => ({...p, roofType: v, mu: mu[v]||0.8})); }}
+            <Select label="Tip acoperiș" value={snowParams.roofType}
+              onChange={v => {
+                const muMap: Record<string, number> = { plat: 0.8, simpanta: 0.8, dubla: 0.8, shed: 0.6 };
+                setSnowParams(p => ({...p, roofType: v, mu: muMap[v] || 0.8}));
+              }}
               options={[
-                { value: "plat", label: "Plat (0°–5°)" }, { value: "simpanta", label: "Monopantă" },
-                { value: "dubla", label: "Două ape" }, { value: "shed", label: "Shed / Fierăstrău" }
+                { value: "plat", label: "Plat (0° - 5°)" },
+                { value: "simpanta", label: "Monopantă" },
+                { value: "dubla", label: "Două ape" },
+                { value: "shed", label: "Shed / Dinte de fierăstrău" }
               ]} />
           </div>
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-            <Input label="μi (coef. formă)" value={snowP.mu} onChange={v => setSnowP(p => ({...p, mu:v}))} type="number" small />
-            <Input label="Ce (expunere)" value={snowP.Ce} onChange={v => setSnowP(p => ({...p, Ce:v}))} type="number" small />
-            <Input label="Ct (termic)" value={snowP.Ct} onChange={v => setSnowP(p => ({...p, Ct:v}))} type="number" small />
+            <Input label="μi (coef. formă)" value={snowParams.mu} onChange={v => setSnowParams(p => ({...p, mu: v}))} type="number" small />
+            <Input label="Ce (expunere)" value={snowParams.Ce} onChange={v => setSnowParams(p => ({...p, Ce: v}))} type="number" small />
+            <Input label="Ct (termic)" value={snowParams.Ct} onChange={v => setSnowParams(p => ({...p, Ct: v}))} type="number" small />
           </div>
         </div>
       </Card>
       <div style={{ background: "#0f172a", borderRadius: 10, padding: 20, textAlign: "center", border: "2px solid #38bdf8" }}>
-        <div style={{ fontSize: 12, color: "#94a3b8", marginBottom: 4 }}>s = μi × Ce × Ct × s₀,k = {snowP.mu} × {snowP.Ce} × {snowP.Ct} × {s0k}</div>
+        <div style={{ fontSize: 12, color: "#94a3b8", marginBottom: 4 }}>s = μi × Ce × Ct × s₀,k = {snowParams.mu} × {snowParams.Ce} × {snowParams.Ct} × {s0k}</div>
         <div style={{ fontSize: 32, fontWeight: 800, color: "#38bdf8" }}>{snowLoad.toFixed(2)} <span style={{ fontSize: 16 }}>kN/m²</span></div>
       </div>
     </div>
@@ -404,21 +534,22 @@ export default function StructCalc() {
 
   const renderWind = () => (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      <Card title="Parametri Vânt — CR 1-1-4/2012" accent="#a78bfa">
+      <Card title="Parametri Vânt — CR 1-1-4" accent="#a78bfa">
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
             <div style={{ flex: 1, background: "#0f172a", borderRadius: 8, padding: 12 }}>
-              <div style={{ fontSize: 11, color: "#94a3b8" }}>qb (jud. {project.judet})</div>
+              <div style={{ fontSize: 11, color: "#94a3b8" }}>qb (din județ: {project.judet})</div>
               <div style={{ fontSize: 24, fontWeight: 700, color: "#a78bfa" }}>{qb} kN/m²</div>
             </div>
-            <Select label="Categoria de teren" value={windP.catTeren} onChange={v => setWindP(p => ({...p, catTeren:v}))}
+            <Select label="Categoria de teren" value={windParams.catTeren}
+              onChange={v => setWindParams(p => ({...p, catTeren: v}))}
               options={CATEGORII_TEREN.map(c => ({ value: c.cat, label: `${c.cat} — ${c.desc}` }))} />
           </div>
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-            <Input label="co(z) (orografie)" value={windP.co} onChange={v => setWindP(p => ({...p, co:v}))} type="number" small />
+            <Input label="co(z) (orografie)" value={windParams.co} onChange={v => setWindParams(p => ({...p, co: v}))} type="number" small />
             <div style={{ flex: 1, background: "#0f172a", borderRadius: 8, padding: 12 }}>
-              <div style={{ fontSize: 11, color: "#94a3b8" }}>z₀ = {terenCat.z0}m | z_min = {terenCat.zmin}m | kr = {kr.toFixed(4)}</div>
-              <div style={{ fontSize: 11, color: "#94a3b8" }}>cr(z) = {crz.toFixed(4)} la z = {z.toFixed(1)}m</div>
+              <div style={{ fontSize: 11, color: "#94a3b8" }}>z₀ = {terenCat.z0}m, z_min = {terenCat.zmin}m, kr = {kr.toFixed(4)}</div>
+              <div style={{ fontSize: 11, color: "#94a3b8" }}>cr(z) = {crz.toFixed(4)} (la z = {z.toFixed(1)}m)</div>
             </div>
           </div>
         </div>
@@ -434,36 +565,43 @@ export default function StructCalc() {
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       <Card title="Parametri Seismici — P100-1/2013" accent="#ef4444">
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          <div style={{ background: "#0f172a", borderRadius: 8, padding: 10, border: "1px solid #334155" }}>
-            <div style={{ fontSize: 11, color: "#94a3b8" }}>Localitate de referință: <strong style={{ color: "#f1f5f9" }}>{sz.oras}</strong> (jud. {project.judet})</div>
-            <div style={{ fontSize: 10, color: "#64748b", marginTop: 4 }}>P100-1/2013 | IMR = 225 ani | 20% probabilitate depășire în 50 ani | β₀ = 2.5</div>
-            <div style={{ fontSize: 10, color: "#f59e0b", marginTop: 4 }}>⚠ Valori pentru reședința de județ. Pentru alte localități, consultați harta interactivă CCERS/UTCB.</div>
+          <div style={{ background: "#0f172a", borderRadius: 8, padding: 10, border: "1px solid #334155", marginBottom: 4 }}>
+            <div style={{ fontSize: 11, color: "#94a3b8" }}>
+              Localitate de referință: <strong style={{ color: "#f1f5f9" }}>{seismicZone.oras || project.judet}</strong> (jud. {project.judet})
+            </div>
+            <div style={{ fontSize: 10, color: "#64748b", marginTop: 4 }}>
+              Conform P100-1/2013 | IMR = 225 ani | 20% probabilitate depășire în 50 ani | β₀ = 2.5
+            </div>
+            <div style={{ fontSize: 10, color: "#f59e0b", marginTop: 4 }}>
+              Valori pentru reședința de județ. Pentru alte localități, consultați harta interactivă CCERS/UTCB.
+            </div>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))", gap: 12 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 12 }}>
             {[
-              { label: "ag", value: `${sz.ag}g`, color: "#f87171", desc: "Accelerație teren" },
-              { label: "Tc", value: `${sz.Tc}s`, color: "#fbbf24", desc: "Perioadă colț" },
-              { label: "γI", value: gammaI, color: "#34d399", desc: "Factor importanță" },
-              { label: "Sd,max", value: `${(sz.ag*seismicP.beta0*gammaI/seismicP.q).toFixed(3)}g`, color: "#f472b6", desc: "Spectru proiectare" }
+              { label: "ag", value: `${seismicZone.ag}g`, color: "#f87171", desc: "Accelerație teren" },
+              { label: "Tc", value: `${seismicZone.Tc}s`, color: "#fbbf24", desc: "Perioadă colț" },
+              { label: "γI", value: String(gammaI), color: "#34d399", desc: "Factor importanță" },
+              { label: "Sd,max", value: `${(seismicZone.ag * seismicParams.beta0 * gammaI / seismicParams.q).toFixed(3)}g`, color: "#f472b6", desc: "Spectru proiectare max" }
             ].map(item => (
               <div key={item.label} style={{ background: "#0f172a", borderRadius: 8, padding: 12, borderLeft: `3px solid ${item.color}` }}>
                 <div style={{ fontSize: 11, color: "#94a3b8" }}>{item.label}</div>
-                <div style={{ fontSize: 20, fontWeight: 700, color: item.color }}>{String(item.value)}</div>
+                <div style={{ fontSize: 20, fontWeight: 700, color: item.color }}>{item.value}</div>
                 <div style={{ fontSize: 9, color: "#475569" }}>{item.desc}</div>
               </div>
             ))}
           </div>
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-            <Input label="q (factor comportare)" value={seismicP.q} onChange={v => setSeismicP(p => ({...p, q:v}))} type="number" small />
-            <Input label="η (amortizare)" value={seismicP.eta} onChange={v => setSeismicP(p => ({...p, eta:v}))} type="number" small />
-            <Input label="β₀ (amplificare)" value={seismicP.beta0} onChange={v => setSeismicP(p => ({...p, beta0:v}))} type="number" small />
+            <Input label="q (factor de comportare)" value={seismicParams.q} onChange={v => setSeismicParams(p => ({...p, q: v}))} type="number" small />
+            <Input label="η (factor amortizare)" value={seismicParams.eta} onChange={v => setSeismicParams(p => ({...p, eta: v}))} type="number" small />
+            <Input label="β₀ (amplificare max.)" value={seismicParams.beta0} onChange={v => setSeismicParams(p => ({...p, beta0: v}))} type="number" small />
           </div>
         </div>
       </Card>
       <Card title="Spectru Elastic de Răspuns — Se(T)">
         <SpectrumChart />
         <div style={{ fontSize: 10, color: "#64748b", marginTop: 8, lineHeight: 1.5 }}>
-          Tb = {(sz.Tc/3).toFixed(2)}s | Tc = {sz.Tc}s | Td = 2.0s | Se,max = {(sz.ag*seismicP.beta0*seismicP.eta*gammaI).toFixed(3)}g
+          Tb = Tc/3 = {(seismicZone.Tc / 3).toFixed(2)}s | Tc = {seismicZone.Tc}s | Td = 2.0s |
+          Se,max = ag·β₀·η·γI = {(seismicZone.ag * seismicParams.beta0 * seismicParams.eta * gammaI).toFixed(3)}g
         </div>
       </Card>
     </div>
@@ -472,65 +610,203 @@ export default function StructCalc() {
   const renderCombinations = () => (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       <Card title="Combinații ULS — EN 1990 (STR/GEO)" accent="#ef4444">
-        {combos.uls.map((c, i) => (
+        {combinations.uls.map((c, i) => (
           <div key={i} style={{ background: "#0f172a", borderRadius: 8, padding: 12, marginBottom: 8, borderLeft: "3px solid #ef4444" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
-              <div><div style={{ fontSize: 13, fontWeight: 600, color: "#f1f5f9" }}>{c.name}</div>
-                <div style={{ fontSize: 11, color: "#64748b", fontFamily: "monospace", marginTop: 2 }}>{c.formula}</div></div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: "#f1f5f9" }}>{c.name}</div>
+                <div style={{ fontSize: 11, color: "#64748b", fontFamily: "monospace", marginTop: 2 }}>{c.formula}</div>
+              </div>
               <div style={{ fontSize: 20, fontWeight: 700, color: "#f87171" }}>{c.value.toFixed(2)} <span style={{ fontSize: 12 }}>kN/m²</span></div>
             </div>
           </div>
         ))}
       </Card>
       <Card title="Combinații SLS — Frecventă" accent="#3b82f6">
-        {combos.sls_freq.map((c, i) => (
+        {combinations.sls_freq.map((c, i) => (
           <div key={i} style={{ background: "#0f172a", borderRadius: 8, padding: 12, marginBottom: 8, borderLeft: "3px solid #3b82f6" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
-              <div><div style={{ fontSize: 13, fontWeight: 600, color: "#f1f5f9" }}>{c.name}</div>
-                <div style={{ fontSize: 11, color: "#64748b", fontFamily: "monospace", marginTop: 2 }}>{c.formula}</div></div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: "#f1f5f9" }}>{c.name}</div>
+                <div style={{ fontSize: 11, color: "#64748b", fontFamily: "monospace", marginTop: 2 }}>{c.formula}</div>
+              </div>
               <div style={{ fontSize: 20, fontWeight: 700, color: "#60a5fa" }}>{c.value.toFixed(2)} <span style={{ fontSize: 12 }}>kN/m²</span></div>
             </div>
           </div>
         ))}
       </Card>
-      <Card title="SLS — Quasi-permanentă" accent="#10b981">
-        {combos.sls_qp.map((c, i) => (
+      <Card title="Combinații SLS — Quasi-permanentă" accent="#10b981">
+        {combinations.sls_qp.map((c, i) => (
           <div key={i} style={{ background: "#0f172a", borderRadius: 8, padding: 12, borderLeft: "3px solid #10b981" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
-              <div><div style={{ fontSize: 13, fontWeight: 600, color: "#f1f5f9" }}>{c.name}</div>
-                <div style={{ fontSize: 11, color: "#64748b", fontFamily: "monospace", marginTop: 2 }}>{c.formula}</div></div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: "#f1f5f9" }}>{c.name}</div>
+                <div style={{ fontSize: 11, color: "#64748b", fontFamily: "monospace", marginTop: 2 }}>{c.formula}</div>
+              </div>
               <div style={{ fontSize: 20, fontWeight: 700, color: "#34d399" }}>{c.value.toFixed(2)} <span style={{ fontSize: 12 }}>kN/m²</span></div>
             </div>
           </div>
         ))}
       </Card>
-      <Btn variant="success" onClick={exportReport} style={{ alignSelf: "flex-start" }}><Icons.Download /> Exportă raport .txt</Btn>
     </div>
   );
 
-  const contentMap: Record<string, () => JSX.Element> = { project: renderProject, permanent: renderPermanent, snow: renderSnow, wind: renderWind, seismic: renderSeismic, combo: renderCombinations };
+  // FIX: renderLibrary nu mai are useState intern — state-ul e mutat sus in componenta
+  const renderLibrary = () => (
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      <Card title="Adaugă Normativ / Anexă" accent="#10b981">
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <div style={{ display: "flex", gap: 12 }}>
+            <Input label="Denumire normativ" value={newNorm.name} onChange={v => setNewNorm(p => ({...p, name: v}))} />
+            <Select label="Tip" value={newNorm.type} onChange={v => setNewNorm(p => ({...p, type: v}))}
+              options={[
+                { value: "tabel", label: "Tabel valori" },
+                { value: "formula", label: "Formulă" },
+                { value: "text", label: "Text normativ" }
+              ]} />
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            <label style={{ fontSize: 11, color: "#94a3b8", fontWeight: 500 }}>Conținut</label>
+            <textarea
+              value={newNorm.content}
+              onChange={e => setNewNorm(p => ({...p, content: e.target.value}))}
+              placeholder="Introduceți valorile, formulele sau textul normativului..."
+              style={{
+                background: "#0f172a", border: "1px solid #334155", borderRadius: 6,
+                padding: 12, color: "#e2e8f0", fontSize: 13, minHeight: 100, resize: "vertical",
+                fontFamily: "inherit", outline: "none"
+              }}
+            />
+          </div>
+          <Btn variant="success" onClick={() => {
+            if (newNorm.name.trim()) {
+              const updated = [...normLib, { ...newNorm, id: "n" + Date.now() }];
+              saveNorms(updated);
+              setNewNorm({ name: "", type: "tabel", content: "" });
+            }
+          }}>
+            <Icons.Plus /> Salvează în bibliotecă
+          </Btn>
+        </div>
+      </Card>
+      <Card title={`Bibliotecă normative (${normLib.length})`}>
+        {normLib.length === 0 ? (
+          <div style={{ textAlign: "center", padding: 24, color: "#64748b" }}>
+            Nu sunt normative salvate. Adaugă manual sau consultă AI-ul pentru interpretare.
+          </div>
+        ) : normLib.map(n => (
+          <div key={n.id} style={{ background: "#0f172a", borderRadius: 8, padding: 12, marginBottom: 8, display: "flex", justifyContent: "space-between", alignItems: "start" }}>
+            <div>
+              <div style={{ fontWeight: 600, fontSize: 13, color: "#f1f5f9" }}>{n.name} <Badge color="#10b981">{n.type}</Badge></div>
+              <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 4, whiteSpace: "pre-wrap", maxHeight: 80, overflow: "auto" }}>{n.content}</div>
+            </div>
+            <Btn variant="danger" small onClick={() => saveNorms(normLib.filter(nn => nn.id !== n.id))}><Icons.Trash /></Btn>
+          </div>
+        ))}
+      </Card>
+    </div>
+  );
+
+  const renderAI = () => (
+    <div style={{ display: "flex", flexDirection: "column", height: "calc(100vh - 180px)", minHeight: 400 }}>
+      <div style={{ flex: 1, overflow: "auto", padding: 16, display: "flex", flexDirection: "column", gap: 12 }}>
+        {aiMessages.length === 0 && (
+          <div style={{ textAlign: "center", padding: 40, color: "#64748b" }}>
+            <Icons.Brain />
+            <div style={{ marginTop: 12, fontSize: 14 }}>Agent AI structural — întreabă orice despre normative, încărcări, coeficienți</div>
+            <div style={{ marginTop: 8, fontSize: 12 }}>Agentul are acces la datele proiectului și biblioteca de normative.</div>
+            <div style={{ display: "flex", gap: 8, justifyContent: "center", marginTop: 16, flexWrap: "wrap" }}>
+              {["Ce coeficient μ folosesc pentru acoperiș cu 2 ape la 30°?",
+                "Verifică valorile de zăpadă pentru acest proiect",
+                "Explică combinațiile ULS conform EN 1990"
+              ].map(q => (
+                <Btn key={q} variant="ghost" small onClick={() => { setAiInput(q); }}>
+                  {q.length > 40 ? q.slice(0, 40) + "..." : q}
+                </Btn>
+              ))}
+            </div>
+          </div>
+        )}
+        {aiMessages.map((m, i) => (
+          <div key={i} style={{
+            alignSelf: m.role === "user" ? "flex-end" : "flex-start",
+            maxWidth: "85%", padding: "10px 14px", borderRadius: 12,
+            background: m.role === "user" ? "#3b82f6" : "#1e293b",
+            color: "#f1f5f9", fontSize: 13, lineHeight: 1.5,
+            border: m.role === "assistant" ? "1px solid #334155" : "none",
+            whiteSpace: "pre-wrap"
+          }}>
+            {m.content}
+          </div>
+        ))}
+        {aiLoading && (
+          <div style={{ alignSelf: "flex-start", padding: "10px 14px", borderRadius: 12, background: "#1e293b", border: "1px solid #334155", color: "#94a3b8", fontSize: 13, display: "flex", alignItems: "center", gap: 8 }}>
+            <Icons.Loader /> Analizez...
+          </div>
+        )}
+        <div ref={chatEndRef} />
+      </div>
+      <div style={{ borderTop: "1px solid #334155", padding: 12, display: "flex", gap: 8 }}>
+        <input
+          value={aiInput}
+          onChange={e => setAiInput(e.target.value)}
+          onKeyDown={e => e.key === "Enter" && !e.shiftKey && sendToAI()}
+          placeholder="Întreabă agentul AI..."
+          style={{
+            flex: 1, background: "#0f172a", border: "1px solid #334155", borderRadius: 8,
+            padding: "10px 14px", color: "#e2e8f0", fontSize: 13, outline: "none"
+          }}
+        />
+        <Btn onClick={sendToAI} disabled={aiLoading || !aiInput.trim()}>
+          {aiLoading ? <Icons.Loader /> : <Icons.Send />}
+        </Btn>
+      </div>
+    </div>
+  );
+
+  const contentMap: Record<string, () => React.ReactNode> = {
+    project: renderProject,
+    permanent: renderPermanent,
+    snow: renderSnow,
+    wind: renderWind,
+    seismic: renderSeismic,
+    combo: renderCombinations,
+    library: renderLibrary,
+    ai: renderAI
+  };
 
   return (
     <div style={{ background: "#0f172a", minHeight: "100vh", color: "#e2e8f0", fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}>
-      <div style={{ background: "#1e293b", borderBottom: "1px solid #334155", padding: "12px 20px", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+      {/* Header */}
+      <div style={{ background: "#1e293b", borderBottom: "1px solid #334155", padding: "12px 20px", display: "flex", alignItems: "center", gap: 12 }}>
         <div style={{ width: 32, height: 32, background: "linear-gradient(135deg, #3b82f6, #8b5cf6)", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 14 }}>SC</div>
         <div>
-          <div style={{ fontWeight: 700, fontSize: 16 }}>StructCalc</div>
-          <div style={{ fontSize: 11, color: "#64748b" }}>Evaluare încărcări • EN 1991 / P100-1/2013 / CR 1-1-3 / CR 1-1-4</div>
+          <div style={{ fontWeight: 700, fontSize: 16 }}>StructCalc AI</div>
+          <div style={{ fontSize: 11, color: "#64748b" }}>Evaluare încărcări • EN 1991 / P100-1/2013 (IMR=225 ani) / CR 1-1-3 / CR 1-1-4</div>
         </div>
         {project.name && <Badge color="#3b82f6">{project.name}</Badge>}
       </div>
+      {/* Tabs */}
       <div style={{ background: "#1e293b", borderBottom: "1px solid #334155", display: "flex", overflowX: "auto", padding: "0 12px" }}>
         {tabs.map(t => (
-          <button key={t.id} onClick={() => setTab(t.id)}
-            style={{ background: "none", border: "none", color: tab===t.id ? "#3b82f6" : "#94a3b8", padding: "10px 14px", fontSize: 12, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap", borderBottom: tab===t.id ? "2px solid #3b82f6" : "2px solid transparent", transition: "all 0.15s" }}>
+          <button
+            key={t.id}
+            onClick={() => setTab(t.id)}
+            style={{
+              background: "none", border: "none", color: tab === t.id ? "#3b82f6" : "#94a3b8",
+              padding: "10px 14px", fontSize: 12, fontWeight: 600, cursor: "pointer",
+              display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap",
+              borderBottom: tab === t.id ? "2px solid #3b82f6" : "2px solid transparent",
+              transition: "all 0.15s"
+            }}
+          >
             {t.icon} {t.label}
           </button>
         ))}
       </div>
-      <div style={{ padding: 16, maxWidth: 900, margin: "0 auto" }}>{contentMap[tab]?.()}</div>
-      <div style={{ textAlign: "center", padding: "16px 0", fontSize: 10, color: "#475569" }}>
-        StructCalc v1.0 • Valori seismice conform P100-1/2013 (reședințe județ) • Caracter informativ
+      {/* Content */}
+      <div style={{ padding: 16, maxWidth: 900, margin: "0 auto" }}>
+        {contentMap[tab]?.()}
       </div>
     </div>
   );
