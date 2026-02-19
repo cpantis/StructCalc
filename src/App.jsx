@@ -112,6 +112,8 @@ const Icons = {
   Combo: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/></svg>,
   Plus: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>,
   Trash: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>,
+  Mail: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="4" width="20" height="16" rx="2"/><polyline points="22,4 12,13 2,4"/></svg>,
+  Document: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>,
 };
 
 // ===== COMPONENTS =====
@@ -335,6 +337,8 @@ export default function StructCalcAI() {
     { id: "wind", label: "Vânt", icon: <Icons.Wind /> },
     { id: "seismic", label: "Seismic", icon: <Icons.Seismic /> },
     { id: "combo", label: "Combinații", icon: <Icons.Combo /> },
+    { id: "print", label: "Print", icon: <Icons.Document /> },
+    { id: "contact", label: "Contact", icon: <Icons.Mail /> },
   ];
 
   // ===== RENDER SECTIONS =====
@@ -580,13 +584,270 @@ export default function StructCalcAI() {
     </div>
   );
 
+  const renderContact = () => (
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 20, paddingTop: 20 }}>
+      <Card title="Personalizare și Consultanță" accent="#8b5cf6">
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16, padding: "12px 0" }}>
+          <p style={{ fontSize: 14, color: "#94a3b8", textAlign: "center", lineHeight: 1.6, maxWidth: 480 }}>
+            Dorești funcționalități personalizate, calcule suplimentare sau integrare în fluxul tău de proiectare?
+          </p>
+          <div style={{ background: "#0f172a", borderRadius: 10, padding: 20, border: "1px solid #334155", display: "flex", alignItems: "center", gap: 12 }}>
+            <Icons.Mail />
+            <div>
+              <div style={{ fontSize: 12, color: "#94a3b8", marginBottom: 4 }}>Contactează-mă la:</div>
+              <a href="mailto:calin_pantis@yahoo.com" style={{ fontSize: 15, fontWeight: 600, color: "#8b5cf6", textDecoration: "none" }}>
+                calin_pantis@yahoo.com
+              </a>
+            </div>
+          </div>
+        </div>
+      </Card>
+    </div>
+  );
+
+  const renderPrint = () => {
+    const tipCladireMap = { locuinta: "Locuință", birou: "Clădire birouri", comercial: "Comercial", industrial: "Industrial", educatie: "Educație", sanatate: "Sănătate" };
+    const currentDate = new Date().toLocaleDateString("ro-RO", { year: "numeric", month: "long", day: "numeric" });
+    const sdMax = (seismicZone.ag * seismicParams.beta0 * gammaI / seismicParams.q).toFixed(3);
+
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        <div className="no-print" style={{ display: "flex", justifyContent: "flex-end" }}>
+          <Btn variant="primary" onClick={() => window.print()} style={{ gap: 8 }}>
+            <Icons.Document /> Descarcă PDF
+          </Btn>
+        </div>
+
+        <div id="print-report" className="print-area">
+          {/* ANTET */}
+          <div className="report-header" style={{ background: "#1e293b", borderRadius: 10, padding: 24, border: "1px solid #334155", textAlign: "center", marginBottom: 16 }}>
+            <h1 style={{ fontSize: 20, fontWeight: 800, color: "#f1f5f9", marginBottom: 4, letterSpacing: 1 }}>MEMORIU TEHNIC — Evaluare Încărcări</h1>
+            <div style={{ fontSize: 14, color: "#94a3b8", marginBottom: 2 }}>{project.name || "Proiect nedefinit"}</div>
+            <div style={{ fontSize: 12, color: "#64748b" }}>Județul {project.judet} • {currentDate}</div>
+          </div>
+
+          {/* 1. DATE GENERALE PROIECT */}
+          <Card title="1. Date generale proiect" accent="#3b82f6">
+            <table style={{ width: "100%", fontSize: 13, borderCollapse: "collapse" }}>
+              <tbody>
+                {[
+                  ["Denumire proiect", project.name || "—"],
+                  ["Tip clădire", tipCladireMap[project.tipCladire] || project.tipCladire],
+                  ["Clasă importanță", `${project.clasaImp} (γI = ${gammaI})`],
+                  ["Județ / Locație", `${project.judet} (ref: ${seismicZone.oras || project.judet})`],
+                  ["Înălțime H", `${project.H} m`],
+                  ["Lungime L", `${project.L} m`],
+                  ["Lățime B", `${project.B} m`],
+                  ["Număr etaje", project.nrEtaje],
+                ].map(([label, val], i) => (
+                  <tr key={i} style={{ borderBottom: "1px solid #334155" }}>
+                    <td style={{ padding: "8px 12px", color: "#94a3b8", fontWeight: 500, width: "45%" }}>{label}</td>
+                    <td style={{ padding: "8px 12px", color: "#f1f5f9", fontWeight: 600 }}>{val}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </Card>
+
+          {/* 2. ÎNCĂRCĂRI PERMANENTE */}
+          <div style={{ marginTop: 16 }}>
+            <Card title="2. Încărcări permanente (G)" accent="#f59e0b">
+              <table style={{ width: "100%", fontSize: 13, borderCollapse: "collapse" }}>
+                <thead>
+                  <tr style={{ borderBottom: "2px solid #475569" }}>
+                    <th style={{ padding: "8px 12px", textAlign: "left", color: "#94a3b8", fontWeight: 600 }}>Material</th>
+                    <th style={{ padding: "8px 12px", textAlign: "right", color: "#94a3b8", fontWeight: 600 }}>Densitate</th>
+                    <th style={{ padding: "8px 12px", textAlign: "right", color: "#94a3b8", fontWeight: 600 }}>Grosime</th>
+                    <th style={{ padding: "8px 12px", textAlign: "right", color: "#94a3b8", fontWeight: 600 }}>g (kN/m²)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {layers.map((l, i) => {
+                    const g = l.unit === "kN/m²" ? l.density : l.density * l.thickness;
+                    return (
+                      <tr key={i} style={{ borderBottom: "1px solid #334155" }}>
+                        <td style={{ padding: "8px 12px", color: "#f1f5f9" }}>{l.material}</td>
+                        <td style={{ padding: "8px 12px", textAlign: "right", color: "#e2e8f0" }}>{l.density} {l.unit}</td>
+                        <td style={{ padding: "8px 12px", textAlign: "right", color: "#e2e8f0" }}>{l.unit === "kN/m³" ? `${l.thickness} m` : "—"}</td>
+                        <td style={{ padding: "8px 12px", textAlign: "right", color: "#fbbf24", fontWeight: 700 }}>{g.toFixed(2)}</td>
+                      </tr>
+                    );
+                  })}
+                  <tr style={{ borderTop: "2px solid #475569" }}>
+                    <td colSpan={3} style={{ padding: "8px 12px", color: "#f1f5f9", fontWeight: 700 }}>TOTAL G</td>
+                    <td style={{ padding: "8px 12px", textAlign: "right", color: "#fbbf24", fontWeight: 800, fontSize: 15 }}>{totalG.toFixed(2)} kN/m²</td>
+                  </tr>
+                </tbody>
+              </table>
+            </Card>
+          </div>
+
+          {/* 3. ZĂPADĂ */}
+          <div style={{ marginTop: 16 }}>
+            <Card title="3. Încărcarea din zăpadă — CR 1-1-3" accent="#38bdf8">
+              <table style={{ width: "100%", fontSize: 13, borderCollapse: "collapse" }}>
+                <tbody>
+                  {[
+                    ["s₀,k (valoare caracteristică)", `${s0k} kN/m²`],
+                    ["μi (coeficient de formă)", snowParams.mu],
+                    ["Ce (coeficient de expunere)", snowParams.Ce],
+                    ["Ct (coeficient termic)", snowParams.Ct],
+                  ].map(([label, val], i) => (
+                    <tr key={i} style={{ borderBottom: "1px solid #334155" }}>
+                      <td style={{ padding: "8px 12px", color: "#94a3b8", width: "55%" }}>{label}</td>
+                      <td style={{ padding: "8px 12px", color: "#f1f5f9", fontWeight: 600 }}>{val}</td>
+                    </tr>
+                  ))}
+                  <tr style={{ borderTop: "2px solid #475569", background: "#0f172a" }}>
+                    <td style={{ padding: "10px 12px", color: "#f1f5f9", fontWeight: 700 }}>s = μi × Ce × Ct × s₀,k</td>
+                    <td style={{ padding: "10px 12px", color: "#38bdf8", fontWeight: 800, fontSize: 16 }}>{snowLoad.toFixed(2)} kN/m²</td>
+                  </tr>
+                </tbody>
+              </table>
+            </Card>
+          </div>
+
+          {/* 4. VÂNT */}
+          <div style={{ marginTop: 16 }}>
+            <Card title="4. Încărcarea din vânt — CR 1-1-4" accent="#a78bfa">
+              <table style={{ width: "100%", fontSize: 13, borderCollapse: "collapse" }}>
+                <tbody>
+                  {[
+                    ["qb (presiune de referință)", `${qb} kN/m²`],
+                    ["Categoria de teren", `${windParams.catTeren} — ${terenCat.desc}`],
+                    ["z₀ (rugozitate)", `${terenCat.z0} m`],
+                    ["kr (factor teren)", kr.toFixed(4)],
+                    ["cr(z) (factor rugozitate)", `${crz.toFixed(4)} (la z = ${z.toFixed(1)} m)`],
+                    ["co(z) (factor orografie)", windParams.co],
+                  ].map(([label, val], i) => (
+                    <tr key={i} style={{ borderBottom: "1px solid #334155" }}>
+                      <td style={{ padding: "8px 12px", color: "#94a3b8", width: "55%" }}>{label}</td>
+                      <td style={{ padding: "8px 12px", color: "#f1f5f9", fontWeight: 600 }}>{val}</td>
+                    </tr>
+                  ))}
+                  <tr style={{ borderTop: "2px solid #475569", background: "#0f172a" }}>
+                    <td style={{ padding: "10px 12px", color: "#f1f5f9", fontWeight: 700 }}>qp(z) — Presiune la vârf</td>
+                    <td style={{ padding: "10px 12px", color: "#a78bfa", fontWeight: 800, fontSize: 16 }}>{qpz.toFixed(3)} kN/m²</td>
+                  </tr>
+                </tbody>
+              </table>
+            </Card>
+          </div>
+
+          {/* 5. SEISMIC */}
+          <div style={{ marginTop: 16 }}>
+            <Card title="5. Parametri seismici — P100-1/2013" accent="#ef4444">
+              <table style={{ width: "100%", fontSize: 13, borderCollapse: "collapse" }}>
+                <tbody>
+                  {[
+                    ["Accelerație teren ag", `${seismicZone.ag}g`],
+                    ["Perioadă colț Tc", `${seismicZone.Tc} s`],
+                    ["Factor importanță γI", gammaI],
+                    ["Factor de comportare q", seismicParams.q],
+                    ["Factor amortizare η", seismicParams.eta],
+                    ["Amplificare maximă β₀", seismicParams.beta0],
+                  ].map(([label, val], i) => (
+                    <tr key={i} style={{ borderBottom: "1px solid #334155" }}>
+                      <td style={{ padding: "8px 12px", color: "#94a3b8", width: "55%" }}>{label}</td>
+                      <td style={{ padding: "8px 12px", color: "#f1f5f9", fontWeight: 600 }}>{val}</td>
+                    </tr>
+                  ))}
+                  <tr style={{ borderTop: "2px solid #475569", background: "#0f172a" }}>
+                    <td style={{ padding: "10px 12px", color: "#f1f5f9", fontWeight: 700 }}>Sd,max (spectru proiectare)</td>
+                    <td style={{ padding: "10px 12px", color: "#ef4444", fontWeight: 800, fontSize: 16 }}>{sdMax}g</td>
+                  </tr>
+                </tbody>
+              </table>
+            </Card>
+          </div>
+
+          {/* 6. COMBINAȚII */}
+          <div style={{ marginTop: 16 }}>
+            <Card title="6. Combinații de încărcări — EN 1990" accent="#f59e0b">
+              <div style={{ marginBottom: 12 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "#f87171", marginBottom: 8 }}>ULS (STR/GEO)</div>
+                <table style={{ width: "100%", fontSize: 12, borderCollapse: "collapse" }}>
+                  <thead>
+                    <tr style={{ borderBottom: "2px solid #475569" }}>
+                      <th style={{ padding: "6px 10px", textAlign: "left", color: "#94a3b8" }}>Combinație</th>
+                      <th style={{ padding: "6px 10px", textAlign: "left", color: "#94a3b8" }}>Formulă</th>
+                      <th style={{ padding: "6px 10px", textAlign: "right", color: "#94a3b8" }}>Valoare (kN/m²)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {combinations.uls.map((c, i) => (
+                      <tr key={i} style={{ borderBottom: "1px solid #334155" }}>
+                        <td style={{ padding: "6px 10px", color: "#f1f5f9", fontWeight: 500 }}>{c.name}</td>
+                        <td style={{ padding: "6px 10px", color: "#94a3b8", fontFamily: "monospace", fontSize: 11 }}>{c.formula}</td>
+                        <td style={{ padding: "6px 10px", textAlign: "right", color: "#f87171", fontWeight: 700 }}>{c.value.toFixed(2)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div style={{ marginBottom: 12 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "#60a5fa", marginBottom: 8 }}>SLS — Frecventă</div>
+                <table style={{ width: "100%", fontSize: 12, borderCollapse: "collapse" }}>
+                  <thead>
+                    <tr style={{ borderBottom: "2px solid #475569" }}>
+                      <th style={{ padding: "6px 10px", textAlign: "left", color: "#94a3b8" }}>Combinație</th>
+                      <th style={{ padding: "6px 10px", textAlign: "left", color: "#94a3b8" }}>Formulă</th>
+                      <th style={{ padding: "6px 10px", textAlign: "right", color: "#94a3b8" }}>Valoare (kN/m²)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {combinations.sls_freq.map((c, i) => (
+                      <tr key={i} style={{ borderBottom: "1px solid #334155" }}>
+                        <td style={{ padding: "6px 10px", color: "#f1f5f9", fontWeight: 500 }}>{c.name}</td>
+                        <td style={{ padding: "6px 10px", color: "#94a3b8", fontFamily: "monospace", fontSize: 11 }}>{c.formula}</td>
+                        <td style={{ padding: "6px 10px", textAlign: "right", color: "#60a5fa", fontWeight: 700 }}>{c.value.toFixed(2)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "#34d399", marginBottom: 8 }}>SLS — Quasi-permanentă</div>
+                <table style={{ width: "100%", fontSize: 12, borderCollapse: "collapse" }}>
+                  <thead>
+                    <tr style={{ borderBottom: "2px solid #475569" }}>
+                      <th style={{ padding: "6px 10px", textAlign: "left", color: "#94a3b8" }}>Combinație</th>
+                      <th style={{ padding: "6px 10px", textAlign: "left", color: "#94a3b8" }}>Formulă</th>
+                      <th style={{ padding: "6px 10px", textAlign: "right", color: "#94a3b8" }}>Valoare (kN/m²)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {combinations.sls_qp.map((c, i) => (
+                      <tr key={i} style={{ borderBottom: "1px solid #334155" }}>
+                        <td style={{ padding: "6px 10px", color: "#f1f5f9", fontWeight: 500 }}>{c.name}</td>
+                        <td style={{ padding: "6px 10px", color: "#94a3b8", fontFamily: "monospace", fontSize: 11 }}>{c.formula}</td>
+                        <td style={{ padding: "6px 10px", textAlign: "right", color: "#34d399", fontWeight: 700 }}>{c.value.toFixed(2)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+          </div>
+
+          {/* FOOTER */}
+          <div style={{ marginTop: 24, padding: "16px 0", borderTop: "1px solid #334155", textAlign: "center" }}>
+            <div style={{ fontSize: 12, color: "#64748b" }}>Generat cu StructCalc • Data: {currentDate}</div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const contentMap = {
     project: renderProject,
     permanent: renderPermanent,
     snow: renderSnow,
     wind: renderWind,
     seismic: renderSeismic,
-    combo: renderCombinations
+    combo: renderCombinations,
+    print: renderPrint,
+    contact: renderContact
   };
 
   return (
@@ -595,7 +856,7 @@ export default function StructCalcAI() {
       <div style={{ background: "#1e293b", borderBottom: "1px solid #334155", padding: "12px 20px", display: "flex", alignItems: "center", gap: 12 }}>
         <div style={{ width: 32, height: 32, background: "linear-gradient(135deg, #3b82f6, #8b5cf6)", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 14 }}>SC</div>
         <div>
-          <div style={{ fontWeight: 700, fontSize: 16 }}>StructCalc AI</div>
+          <div style={{ fontWeight: 700, fontSize: 16 }}>StructCalc</div>
           <div style={{ fontSize: 11, color: "#64748b" }}>Evaluare încărcări • EN 1991 / P100-1/2013 (IMR=225 ani) / CR 1-1-3 / CR 1-1-4</div>
         </div>
         {project.name && <Badge color="#3b82f6">{project.name}</Badge>}
