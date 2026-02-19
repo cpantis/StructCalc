@@ -160,7 +160,10 @@ const Card = ({ children, title, accent }) => (
     borderTop: accent ? `3px solid ${accent}` : undefined, overflow: "hidden"
   }}>
     {title && (
-      <div style={{ padding: "12px 16px", borderBottom: "1px solid #334155", fontWeight: 600, fontSize: 14, color: "#f1f5f9" }}>
+      <div style={{
+        padding: "12px 16px", borderBottom: "1px solid #334155", fontWeight: 600, fontSize: 14, color: "#f1f5f9",
+        background: accent ? accent + "15" : undefined
+      }}>
         {title}
       </div>
     )}
@@ -212,7 +215,7 @@ export default function StructCalcAI() {
   ]);
   const [snowParams, setSnowParams] = useState({ roofType: "plat", mu: 0.8, Ce: 1.0, Ct: 1.0 });
   const [windParams, setWindParams] = useState({ catTeren: "III", co: 1.0 });
-  const [seismicParams, setSeismicParams] = useState({ q: 3.5, eta: 1.0, beta0: 2.5 });
+  const [seismicParams, setSeismicParams] = useState({ q: 3.5, eta: 1.0, beta0: 2.5, customAg: null, customTc: null });
   const [normLib, setNormLib] = useState([]);
 
   // Load saved normatives from localStorage
@@ -231,7 +234,12 @@ export default function StructCalcAI() {
   // ===== CALCULATIONS =====
   const s0k = JUDETE_ZAPADA[project.judet] || 1.5;
   const qb = JUDETE_VANT[project.judet] || 0.5;
-  const seismicZone = JUDETE_SEISMIC[project.judet] || { ag: 0.20, Tc: 1.0 };
+  const seismicZoneBase = JUDETE_SEISMIC[project.judet] || { ag: 0.20, Tc: 1.0 };
+  const seismicZone = {
+    ...seismicZoneBase,
+    ag: seismicParams.customAg !== null ? seismicParams.customAg : seismicZoneBase.ag,
+    Tc: seismicParams.customTc !== null ? seismicParams.customTc : seismicZoneBase.Tc
+  };
   const gammaI = CLASE_IMPORTANTA.find(c => c.cls === project.clasaImp)?.gamma || 1.0;
 
   // Permanent loads
@@ -506,13 +514,14 @@ export default function StructCalcAI() {
               Conform P100-1/2013 | IMR = 225 ani | 20% probabilitate depășire în 50 ani | β₀ = 2.5
             </div>
             <div style={{ fontSize: 10, color: "#f59e0b", marginTop: 4 }}>
-              ⚠ Valori pentru reședința de județ. Pentru alte localități, consultați harta interactivă CCERS/UTCB.
+              ⚠ Valori pentru reședința de județ. Pentru alte localități, consultați{" "}
+              <a href="https://www.ccers.utcb.ro" target="_blank" rel="noopener noreferrer" style={{ color: "#f59e0b", textDecoration: "underline" }}>
+                harta interactivă CCERS/UTCB
+              </a>.
             </div>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 12 }}>
             {[
-              { label: "ag", value: `${seismicZone.ag}g`, color: "#f87171", desc: "Accelerație teren" },
-              { label: "Tc", value: `${seismicZone.Tc}s`, color: "#fbbf24", desc: "Perioadă colț" },
               { label: "γI", value: gammaI, color: "#34d399", desc: "Factor importanță" },
               { label: "Sd,max", value: `${(seismicZone.ag * seismicParams.beta0 * gammaI / seismicParams.q).toFixed(3)}g`, color: "#f472b6", desc: "Spectru proiectare max" }
             ].map(item => (
@@ -524,6 +533,8 @@ export default function StructCalcAI() {
             ))}
           </div>
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+            <Input label={`ag (implicit: ${seismicZoneBase.ag}g)`} value={seismicParams.customAg !== null ? seismicParams.customAg : seismicZoneBase.ag} onChange={v => setSeismicParams(p => ({...p, customAg: v}))} type="number" small />
+            <Input label={`Tc (implicit: ${seismicZoneBase.Tc}s)`} value={seismicParams.customTc !== null ? seismicParams.customTc : seismicZoneBase.Tc} onChange={v => setSeismicParams(p => ({...p, customTc: v}))} type="number" small />
             <Input label="q (factor de comportare)" value={seismicParams.q} onChange={v => setSeismicParams(p => ({...p, q: v}))} type="number" small />
             <Input label="η (factor amortizare)" value={seismicParams.eta} onChange={v => setSeismicParams(p => ({...p, eta: v}))} type="number" small />
             <Input label="β₀ (amplificare max.)" value={seismicParams.beta0} onChange={v => setSeismicParams(p => ({...p, beta0: v}))} type="number" small />
@@ -620,7 +631,7 @@ export default function StructCalcAI() {
 
         <div id="print-report" className="print-area">
           {/* ANTET */}
-          <div className="report-header" style={{ background: "#1e293b", borderRadius: 10, padding: 24, border: "1px solid #334155", textAlign: "center", marginBottom: 16 }}>
+          <div className="report-header" style={{ background: "#1e293b", borderRadius: 10, padding: 24, textAlign: "center", marginBottom: 16 }}>
             <h1 style={{ fontSize: 20, fontWeight: 800, color: "#f1f5f9", marginBottom: 4, letterSpacing: 1 }}>MEMORIU TEHNIC — Evaluare Încărcări</h1>
             <div style={{ fontSize: 14, color: "#94a3b8", marginBottom: 2 }}>{project.name || "Proiect nedefinit"}</div>
             <div style={{ fontSize: 12, color: "#64748b" }}>Județul {project.judet} • {currentDate}</div>
