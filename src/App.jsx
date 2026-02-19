@@ -513,15 +513,11 @@ export default function StructCalcAI() {
             <div style={{ fontSize: 10, color: "#64748b", marginTop: 4 }}>
               Conform P100-1/2013 | IMR = 225 ani | 20% probabilitate depășire în 50 ani | β₀ = 2.5
             </div>
-            <div style={{ fontSize: 10, color: "#f59e0b", marginTop: 4 }}>
-              ⚠ Valori pentru reședința de județ. Pentru alte localități, consultați{" "}
-              <a href="https://www.ccers.utcb.ro" target="_blank" rel="noopener noreferrer" style={{ color: "#f59e0b", textDecoration: "underline" }}>
-                harta interactivă CCERS/UTCB
-              </a>.
-            </div>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 12 }}>
             {[
+              { label: "ag", value: `${seismicZone.ag}g`, color: "#f87171", desc: "Accelerație teren" },
+              { label: "Tc", value: `${seismicZone.Tc}s`, color: "#fbbf24", desc: "Perioadă colț" },
               { label: "γI", value: gammaI, color: "#34d399", desc: "Factor importanță" },
               { label: "Sd,max", value: `${(seismicZone.ag * seismicParams.beta0 * gammaI / seismicParams.q).toFixed(3)}g`, color: "#f472b6", desc: "Spectru proiectare max" }
             ].map(item => (
