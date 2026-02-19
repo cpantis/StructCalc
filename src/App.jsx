@@ -56,7 +56,7 @@ const JUDETE_SEISMIC = {
   "Maramureș": { ag: 0.15, Tc: 0.7, oras: "Baia Mare" },
   "Mehedinți": { ag: 0.15, Tc: 0.7, oras: "Drobeta-Turnu Severin" },
   "Mureș": { ag: 0.15, Tc: 0.7, oras: "Târgu Mureș" },
-  "Neamț": { ag: 0.30, Tc: 0.7, oras: "Piatra Neamț" },
+  "Neamț": { ag: 0.20, Tc: 0.7, oras: "Piatra Neamț" },
   "Olt": { ag: 0.20, Tc: 1.0, oras: "Slatina" },
   "Prahova": { ag: 0.30, Tc: 1.0, oras: "Ploiești" },
   "Satu Mare": { ag: 0.10, Tc: 0.7, oras: "Satu Mare" },
@@ -68,7 +68,7 @@ const JUDETE_SEISMIC = {
   "Tulcea": { ag: 0.20, Tc: 1.0, oras: "Tulcea" },
   "Vaslui": { ag: 0.30, Tc: 0.7, oras: "Vaslui" },
   "Vâlcea": { ag: 0.20, Tc: 1.0, oras: "Râmnicu Vâlcea" },
-  "Vrancea": { ag: 0.40, Tc: 0.7, oras: "Focșani" },
+  "Vrancea": { ag: 0.35, Tc: 1.0, oras: "Focșani" },
   "București": { ag: 0.30, Tc: 1.6, oras: "București" }
 };
 
