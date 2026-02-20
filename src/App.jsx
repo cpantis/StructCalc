@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef } from "react";
+import { Document, Packer, Paragraph, Table, TableRow, TableCell, TextRun, HeadingLevel, AlignmentType, BorderStyle, WidthType, Header, Footer, PageNumber, PageBreak, ExternalHyperlink } from "docx";
+import { saveAs } from "file-saver";
 
 // ===== ROMANIAN ZONE DATA =====
 const JUDETE_ZAPADA = {
@@ -612,6 +614,256 @@ export default function StructCalcAI() {
     </div>
   );
 
+  // ===== DOCX GENERATOR =====
+  const generateDocx = async () => {
+    const tipCladireMap = { locuinta: "Locuință", birou: "Clădire birouri", comercial: "Comercial", industrial: "Industrial", educatie: "Educație", sanatate: "Sănătate" };
+    const now = new Date();
+    const dateStr = `${String(now.getDate()).padStart(2,"0")}.${String(now.getMonth()+1).padStart(2,"0")}.${now.getFullYear()}`;
+    const sdMax = (seismicZone.ag * seismicParams.beta0 * gammaI / seismicParams.q).toFixed(3);
+
+    const FONT = "Times New Roman";
+    const borders = {
+      top: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
+      bottom: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
+      left: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
+      right: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
+    };
+    const noBorders = {
+      top: { style: BorderStyle.NONE }, bottom: { style: BorderStyle.NONE },
+      left: { style: BorderStyle.NONE }, right: { style: BorderStyle.NONE },
+    };
+    const cellMargins = { top: 40, bottom: 40, left: 80, right: 80 };
+    const shadedCell = { fill: "D9D9D9" };
+
+    const txt = (text, opts = {}) => new TextRun({ text, font: FONT, size: opts.size || 22, bold: opts.bold, color: opts.color, ...opts });
+    const para = (children, opts = {}) => new Paragraph({ children: Array.isArray(children) ? children : [children], spacing: { after: opts.after ?? 120, before: opts.before ?? 0 }, alignment: opts.alignment, ...opts });
+
+    const makeCell = (text, opts = {}) => new TableCell({
+      children: [para(txt(text, { size: opts.size || 20, bold: opts.bold }), { alignment: opts.alignment })],
+      borders, margins: cellMargins, width: opts.width ? { size: opts.width, type: WidthType.PERCENTAGE } : undefined,
+      shading: opts.shaded ? shadedCell : undefined,
+    });
+
+    const makeHeaderRow = (cells) => new TableRow({
+      children: cells.map(c => makeCell(c.text, { bold: true, shaded: true, size: 20, alignment: c.align, width: c.width })),
+    });
+
+    const makeRow = (cells) => new TableRow({
+      children: cells.map(c => makeCell(c.text, { bold: c.bold, size: 20, alignment: c.align, width: c.width })),
+    });
+
+    const heading = (text, level = HeadingLevel.HEADING_1) => new Paragraph({
+      children: [txt(text, { size: level === HeadingLevel.HEADING_1 ? 24 : 22, bold: true })],
+      heading: level, spacing: { before: 240, after: 120 },
+    });
+
+    // ----- PAGE DE TITLU -----
+    const titlePage = [
+      para([], { before: 2400 }),
+      para(txt("MEMORIU TEHNIC", { size: 36, bold: true }), { alignment: AlignmentType.CENTER, after: 200 }),
+      para(txt("EVALUAREA ÎNCĂRCĂRILOR PE STRUCTURĂ", { size: 28, bold: true }), { alignment: AlignmentType.CENTER, after: 400 }),
+      para([], { after: 0 }),
+      new Paragraph({ border: { bottom: { style: BorderStyle.SINGLE, size: 2, color: "000000" } }, spacing: { after: 400 } }),
+      para(txt(project.name || "Proiect nedefinit", { size: 28 }), { alignment: AlignmentType.CENTER, after: 200 }),
+      para(txt(`Județul ${project.judet}`, { size: 24 }), { alignment: AlignmentType.CENTER, after: 200 }),
+      para(txt(dateStr, { size: 24 }), { alignment: AlignmentType.CENTER, after: 200 }),
+      para([txt("", { size: 22 }), new PageBreak()]),
+    ];
+
+    // ----- CUPRINS -----
+    const cuprins = [
+      heading("CUPRINS"),
+      ...["1. Date generale proiect", "2. Încărcări permanente (G)", "3. Încărcarea din zăpadă — CR 1-1-3",
+        "4. Încărcarea din vânt — CR 1-1-4", "5. Parametri seismici — P100-1/2013", "6. Combinații de încărcări — EN 1990"
+      ].map(s => para(txt(s, { size: 22 }), { after: 80 })),
+      para([txt("", { size: 22 }), new PageBreak()]),
+    ];
+
+    // ----- 1. DATE GENERALE -----
+    const sec1 = [
+      heading("1. DATE GENERALE PROIECT"),
+      new Table({
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        rows: [
+          makeHeaderRow([{ text: "Parametru", width: 50 }, { text: "Valoare", width: 50 }]),
+          ...([
+            ["Denumire proiect", project.name || "—"],
+            ["Județ / Locație", `${project.judet} (ref: ${seismicZone.oras || project.judet})`],
+            ["Tip clădire", tipCladireMap[project.tipCladire] || project.tipCladire],
+            ["Clasă de importanță", `${project.clasaImp} (γI = ${gammaI})`],
+            ["Înălțime H", `${project.H} m`],
+            ["Lungime L", `${project.L} m`],
+            ["Lățime B", `${project.B} m`],
+            ["Număr etaje", `${project.nrEtaje}`],
+          ]).map(([p, v]) => makeRow([{ text: p, width: 50 }, { text: v, width: 50 }])),
+        ],
+      }),
+      para(txt(`Parametri zonali (automat din județ): s₀,k = ${s0k} kN/m², qb = ${qb} kN/m², ag = ${seismicZone.ag}g, Tc = ${seismicZone.Tc}s`, { size: 20 }), { before: 200 }),
+    ];
+
+    // ----- 2. ÎNCĂRCĂRI PERMANENTE -----
+    const sec2 = [
+      heading("2. ÎNCĂRCĂRI PERMANENTE (G)"),
+      para(txt("Alcătuirea planșeului curent și greutățile specifice ale straturilor componente:", { size: 22 }), { after: 120 }),
+      new Table({
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        rows: [
+          makeHeaderRow([
+            { text: "Nr.", width: 8 }, { text: "Material", width: 32 },
+            { text: "Densitate", width: 20 }, { text: "Grosime (m)", width: 20 },
+            { text: "g (kN/m²)", width: 20, align: AlignmentType.RIGHT },
+          ]),
+          ...layers.map((l, i) => {
+            const g = l.unit === "kN/m²" ? l.density : l.density * l.thickness;
+            return makeRow([
+              { text: `${i + 1}`, width: 8 }, { text: l.material, width: 32 },
+              { text: `${l.density} ${l.unit}`, width: 20 },
+              { text: l.unit === "kN/m³" ? `${l.thickness}` : "—", width: 20 },
+              { text: g.toFixed(2), width: 20, align: AlignmentType.RIGHT },
+            ]);
+          }),
+          new TableRow({
+            children: [
+              new TableCell({ children: [para(txt("TOTAL G", { size: 20, bold: true }))], borders, margins: cellMargins, columnSpan: 4 }),
+              makeCell(totalG.toFixed(2) + " kN/m²", { bold: true, alignment: AlignmentType.RIGHT, width: 20 }),
+            ],
+          }),
+        ],
+      }),
+    ];
+
+    // ----- 3. ZĂPADĂ -----
+    const roofTypeMap = { plat: "Plat (0° - 5°)", simpanta: "Monopantă", dubla: "Două ape", shed: "Shed" };
+    const sec3 = [
+      heading("3. ÎNCĂRCAREA DIN ZĂPADĂ — CR 1-1-3"),
+      para(txt(`Valoarea caracteristică a încărcării din zăpadă pe sol: s₀,k = ${s0k} kN/m² (județul ${project.judet})`, { size: 22 })),
+      new Table({
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        rows: [
+          makeHeaderRow([{ text: "Parametru", width: 50 }, { text: "Valoare", width: 50 }]),
+          ...([
+            ["Tip acoperiș", roofTypeMap[snowParams.roofType] || snowParams.roofType],
+            ["μi (coeficient de formă)", `${snowParams.mu}`],
+            ["Ce (coeficient de expunere)", `${snowParams.Ce}`],
+            ["Ct (coeficient termic)", `${snowParams.Ct}`],
+          ]).map(([p, v]) => makeRow([{ text: p, width: 50 }, { text: v, width: 50 }])),
+        ],
+      }),
+      para(txt(`s = μi × Ce × Ct × s₀,k = ${snowParams.mu} × ${snowParams.Ce} × ${snowParams.Ct} × ${s0k} = ${snowLoad.toFixed(2)} kN/m²`, { size: 22 }), { before: 160 }),
+      para(txt(`Încărcarea din zăpadă pe acoperiș: s = ${snowLoad.toFixed(2)} kN/m²`, { size: 22, bold: true })),
+    ];
+
+    // ----- 4. VÂNT -----
+    const sec4 = [
+      heading("4. ÎNCĂRCAREA DIN VÂNT — CR 1-1-4"),
+      para(txt(`Presiunea de referință a vântului: qb = ${qb} kN/m² (județul ${project.judet})`, { size: 22 })),
+      new Table({
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        rows: [
+          makeHeaderRow([{ text: "Parametru", width: 50 }, { text: "Valoare", width: 50 }]),
+          ...([
+            ["Categoria de teren", `${windParams.catTeren} — ${terenCat.desc}`],
+            ["z₀ (rugozitate)", `${terenCat.z0} m`],
+            ["z_min", `${terenCat.zmin} m`],
+            ["kr (factor teren)", kr.toFixed(4)],
+            ["cr(z) (factor rugozitate)", `${crz.toFixed(4)} (la z = ${z.toFixed(1)} m)`],
+            ["co(z) (factor orografie)", `${windParams.co}`],
+          ]).map(([p, v]) => makeRow([{ text: p, width: 50 }, { text: v, width: 50 }])),
+        ],
+      }),
+      para(txt(`qp(z) = qb × [1 + 7×kr/(cr(z)×co(z))] × cr(z)² × co(z)²`, { size: 22 }), { before: 160 }),
+      para(txt(`Presiunea la vârf: qp(z) = ${qpz.toFixed(3)} kN/m²`, { size: 22, bold: true })),
+    ];
+
+    // ----- 5. SEISMIC -----
+    const sec5 = [
+      heading("5. PARAMETRI SEISMICI — P100-1/2013"),
+      para(txt(`Conform P100-1/2013 (IMR = 225 ani), pentru localitatea de referință ${seismicZone.oras || project.judet} (jud. ${project.judet}):`, { size: 22 })),
+      new Table({
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        rows: [
+          makeHeaderRow([{ text: "Parametru", width: 50 }, { text: "Valoare", width: 50 }]),
+          ...([
+            ["Accelerație teren ag", `${seismicZone.ag}g`],
+            ["Perioadă colț Tc", `${seismicZone.Tc} s`],
+            ["Factor importanță γI", `${gammaI}`],
+            ["Factor de comportare q", `${seismicParams.q}`],
+            ["Factor amortizare η", `${seismicParams.eta}`],
+            ["Amplificare maximă β₀", `${seismicParams.beta0}`],
+            ["Sd,max (spectru proiectare)", `${sdMax}g`],
+          ]).map(([p, v]) => makeRow([{ text: p, width: 50 }, { text: v, width: 50 }])),
+        ],
+      }),
+      para(txt("Valorile corespund reședinței de județ conform hărții de zonare seismică.", { size: 20, color: "666666" }), { before: 80 }),
+    ];
+
+    // ----- 6. COMBINAȚII -----
+    const comboHeaderRow = makeHeaderRow([
+      { text: "Combinație", width: 35 }, { text: "Formulă", width: 40 },
+      { text: "Valoare (kN/m²)", width: 25, align: AlignmentType.RIGHT },
+    ]);
+
+    const comboRows = (items) => items.map(c => makeRow([
+      { text: c.name, width: 35 }, { text: c.formula, width: 40 },
+      { text: c.value.toFixed(2), width: 25, align: AlignmentType.RIGHT },
+    ]));
+
+    const sec6 = [
+      heading("6. COMBINAȚII DE ÎNCĂRCĂRI — EN 1990"),
+      new Paragraph({ children: [txt("6.1. Starea limită ultimă (ULS)", { size: 22, bold: true })], heading: HeadingLevel.HEADING_2, spacing: { before: 160, after: 80 } }),
+      new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows: [comboHeaderRow, ...comboRows(combinations.uls)] }),
+      new Paragraph({ children: [txt("6.2. Starea limită de serviciu — Combinația frecventă (SLS)", { size: 22, bold: true })], heading: HeadingLevel.HEADING_2, spacing: { before: 240, after: 80 } }),
+      new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows: [comboHeaderRow, ...comboRows(combinations.sls_freq)] }),
+      new Paragraph({ children: [txt("6.3. Starea limită de serviciu — Combinația quasi-permanentă", { size: 22, bold: true })], heading: HeadingLevel.HEADING_2, spacing: { before: 240, after: 80 } }),
+      new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows: [comboHeaderRow, ...comboRows(combinations.sls_qp)] }),
+    ];
+
+    const doc = new Document({
+      styles: {
+        default: {
+          document: { run: { font: FONT, size: 22 } },
+          heading1: { run: { font: FONT, size: 24, bold: true } },
+          heading2: { run: { font: FONT, size: 22, bold: true } },
+        },
+      },
+      sections: [{
+        properties: {
+          page: {
+            size: { width: 11906, height: 16838 },
+            margin: { top: 1417, bottom: 1417, left: 1134, right: 1134 },
+          },
+        },
+        headers: {
+          default: new Header({
+            children: [new Paragraph({
+              children: [
+                txt("MEMORIU TEHNIC — Evaluare Încărcări", { size: 16, color: "666666" }),
+                txt("          ", { size: 16 }),
+                new TextRun({ children: ["Pag. ", PageNumber.CURRENT, " / ", PageNumber.TOTAL_PAGES], font: FONT, size: 16, color: "666666" }),
+              ],
+              alignment: AlignmentType.JUSTIFIED,
+            })],
+          }),
+        },
+        footers: {
+          default: new Footer({
+            children: [new Paragraph({
+              children: [
+                txt("Generat cu StructCalc — ", { size: 16, color: "999999" }),
+                new ExternalHyperlink({ children: [txt("www.struct-calc.info", { size: 16, color: "4472C4", underline: {} })], link: "https://www.struct-calc.info" }),
+              ],
+              alignment: AlignmentType.CENTER,
+            })],
+          }),
+        },
+        children: [...titlePage, ...cuprins, ...sec1, ...sec2, ...sec3, ...sec4, ...sec5, ...sec6],
+      }],
+    });
+
+    const blob = await Packer.toBlob(doc);
+    saveAs(blob, `${project.name || "StructCalc"}_Memoriu_Incarcari.docx`);
+  };
+
   const renderPrint = () => {
     const tipCladireMap = { locuinta: "Locuință", birou: "Clădire birouri", comercial: "Comercial", industrial: "Industrial", educatie: "Educație", sanatate: "Sănătate" };
     const currentDate = new Date().toLocaleDateString("ro-RO", { year: "numeric", month: "long", day: "numeric" });
@@ -619,9 +871,12 @@ export default function StructCalcAI() {
 
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-        <div className="no-print" style={{ display: "flex", justifyContent: "flex-end" }}>
-          <Btn variant="primary" onClick={() => window.print()} style={{ gap: 8 }}>
-            <Icons.Document /> Descarcă PDF
+        <div className="no-print" style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+          <Btn variant="primary" onClick={generateDocx} style={{ gap: 8 }}>
+            <Icons.Document /> Descarcă Memoriu Tehnic (.docx)
+          </Btn>
+          <Btn variant="ghost" onClick={() => window.print()} style={{ gap: 8 }}>
+            <Icons.Document /> Print PDF
           </Btn>
         </div>
 
