@@ -850,7 +850,7 @@ export default function StructCalcAI() {
             children: [new Paragraph({
               children: [
                 txt("Generat cu StructCalc — ", { size: 16, color: "999999" }),
-                new ExternalHyperlink({ children: [txt("www.struct-calc.info", { size: 16, color: "4472C4", underline: {} })], link: "https://www.struct-calc.info" }),
+                new ExternalHyperlink({ children: [txt("https://struct-calc.info/", { size: 16, color: "4472C4", underline: {} })], link: "https://struct-calc.info/" }),
               ],
               alignment: AlignmentType.CENTER,
             })],
@@ -874,9 +874,6 @@ export default function StructCalcAI() {
         <div className="no-print" style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
           <Btn variant="primary" onClick={generateDocx} style={{ gap: 8 }}>
             <Icons.Document /> Descarcă Memoriu Tehnic (.docx)
-          </Btn>
-          <Btn variant="ghost" onClick={() => window.print()} style={{ gap: 8 }}>
-            <Icons.Document /> Print PDF
           </Btn>
         </div>
 
